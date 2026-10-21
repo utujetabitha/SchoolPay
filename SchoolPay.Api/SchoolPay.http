@@ -1,0 +1,168 @@
+### SchoolPay API: P1 sample calls
+### Run the API first (dotnet run --project SchoolPay.Api), then click "Send Request" above each call.
+### The ids below assume a fresh start (in memory, ids from 1). Change them if your ids differ.
+### Exact rules and status codes: 04-pair-project/api-contract.md
+
+@baseUrl = http://localhost:5085
+@studentId = 1
+@invoiceId = 1
+
+### API info (the acceptance tests call this first)
+GET {{baseUrl}}/
+Accept: application/json
+
+############################################################
+### Students
+############################################################
+
+### Create a student (expect 201 + Location; studentNumber "SP-" + 6 digits set by the server, parentPhone stored as +250788123456)
+POST {{baseUrl}}/api/students
+Content-Type: application/json
+
+{
+  "fullName": "Keza Uwimana",
+  "className": "S4 MCB",
+  "parentName": "Claudine Mukamana",
+  "parentPhone": "0788123456"
+}
+
+### Create a second student with the +250 phone form (expect 201)
+POST {{baseUrl}}/api/students
+Content-Type: application/json
+
+{
+  "fullName": "Yves Habimana",
+  "className": "S2 B",
+  "parentName": "Jean Bosco Habimana",
+  "parentPhone": "+250722987654"
+}
+
+### Try to set server fields (expect 201: id, studentNumber and createdAt in the body are ignored)
+POST {{baseUrl}}/api/students
+Content-Type: application/json
+
+{
+  "id": 999,
+  "studentNumber": "SP-HACKED",
+  "createdAt": "2020-01-01T00:00:00Z",
+  "fullName": "Ange Ishimwe",
+  "className": "S6 PCM",
+  "parentName": "Eric Ishimwe",
+  "parentPhone": "0733111222"
+}
+
+### Create an invalid student (expect 400 with "errors": name too short, empty class, 075 is not a valid prefix)
+POST {{baseUrl}}/api/students
+Content-Type: application/json
+
+{
+  "fullName": "Al",
+  "className": "",
+  "parentName": "",
+  "parentPhone": "0751234567"
+}
+
+### List all students (P1: JSON array)
+GET {{baseUrl}}/api/students
+Accept: application/json
+
+### Get one student by id
+GET {{baseUrl}}/api/students/{{studentId}}
+Accept: application/json
+
+### Get a student that does not exist (expect 404)
+GET {{baseUrl}}/api/students/9999
+Accept: application/json
+
+### Update a student (expect 204, no body; studentNumber does not change)
+PUT {{baseUrl}}/api/students/{{studentId}}
+Content-Type: application/json
+
+{
+  "fullName": "Keza Uwimana",
+  "className": "S5 MCB",
+  "parentName": "Claudine Mukamana",
+  "parentPhone": "+250788123456"
+}
+
+### Update a student that does not exist (expect 404)
+PUT {{baseUrl}}/api/students/9999
+Content-Type: application/json
+
+{
+  "fullName": "Nobody Here",
+  "className": "S1 A",
+  "parentName": "Nobody There",
+  "parentPhone": "0788000001"
+}
+
+############################################################
+### Invoices
+############################################################
+
+### Create an invoice for a student (expect 201 + Location /api/invoices/{id}; amountPaid 0, balance = amountDue, status Unpaid)
+POST {{baseUrl}}/api/students/{{studentId}}/invoices
+Content-Type: application/json
+
+{
+  "term": "2026-T1",
+  "amountDue": 150000
+}
+
+### Same student, same term again (expect 409)
+POST {{baseUrl}}/api/students/{{studentId}}/invoices
+Content-Type: application/json
+
+{
+  "term": "2026-T1",
+  "amountDue": 150000
+}
+
+### Same student, next term (expect 201)
+POST {{baseUrl}}/api/students/{{studentId}}/invoices
+Content-Type: application/json
+
+{
+  "term": "2026-T2",
+  "amountDue": 150000
+}
+
+### Invoice for a student that does not exist (expect 404)
+POST {{baseUrl}}/api/students/9999/invoices
+Content-Type: application/json
+
+{
+  "term": "2026-T1",
+  "amountDue": 150000
+}
+
+### Invalid invoice (expect 400: unknown term, amount must be 1 to 5,000,000 whole RWF)
+POST {{baseUrl}}/api/students/{{studentId}}/invoices
+Content-Type: application/json
+
+{
+  "term": "2026-T4",
+  "amountDue": 0
+}
+
+### Get one invoice
+GET {{baseUrl}}/api/invoices/{{invoiceId}}
+Accept: application/json
+
+### Get an invoice that does not exist (expect 404)
+GET {{baseUrl}}/api/invoices/9999
+Accept: application/json
+
+### List the invoices of one student (JSON array)
+GET {{baseUrl}}/api/students/{{studentId}}/invoices
+Accept: application/json
+
+############################################################
+### Delete last, so the calls above keep working
+############################################################
+
+### Delete a student (expect 204)
+DELETE {{baseUrl}}/api/students/2
+
+### Delete a student that does not exist (expect 404)
+DELETE {{baseUrl}}/api/students/9999

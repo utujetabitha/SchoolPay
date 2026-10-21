@@ -1,0 +1,21 @@
+# Build output
+bin/
+obj/
+
+# Local SQLite databases (the API recreates and seeds them on startup)
+*.db
+*.db-shm
+*.db-wal
+
+# IDE folders
+.vs/
+.idea/
+.vscode/*.local.json
+*.user
+
+# Node (if you copy the acceptance tests or add an Express extension)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
