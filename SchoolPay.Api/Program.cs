@@ -1,31 +1,48 @@
 using System.Text.Json.Serialization;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using SchoolPay.Api.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Controllers + JSON options. Enums are sent and received as strings ("Unpaid", not 0).
-builder.Services
-    .AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+// Database (SQLite)
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// OpenAPI document generation (served at /openapi/v1.json).
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Prevents errors from School -> Accounts -> School loops
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    });
+
+// Built-in OpenAPI document (read by both Scalar and Swagger UI)
 builder.Services.AddOpenApi();
-
-// P3 (Day 3, "Talking to other APIs"): register the typed HttpClients for the Provider Sandbox here.
-// See Integrations/IMobileMoneyClient.cs and Integrations/ISmsClient.cs. Settings: "Providers" in appsettings.json.
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+// Apply migrations and seed data on startup
+using (var scope = app.Services.CreateScope())
 {
-    app.MapOpenApi();
-    // Interactive API explorer at /scalar
-    app.MapScalarApiReference();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
+    await DataSeeder.SeedAsync(db);
 }
 
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();            
+    app.MapScalarApiReference(); 
+
+    app.UseSwaggerUI(options =>  
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "SchoolPay API");
+        options.RoutePrefix = "swagger";
+    });
+}
+
+app.UseHttpsRedirection();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-// Makes the auto-generated Program class visible to the test project (WebApplicationFactory<Program>).
-public partial class Program { }
